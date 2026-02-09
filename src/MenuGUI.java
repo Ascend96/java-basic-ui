@@ -3,82 +3,117 @@ import java.awt.*;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Random;
 
 public class MenuGUI extends JFrame {
     private JTextArea textArea;
-    private Random random = new Random();
+    private final Random random = new Random();
+
+    // constants for the GUI
+    private static final int WINDOW_WIDTH = 500;
+    private static final int WINDOW_HEIGHT = 500;
+    private static final String LOG_FILE_NAME = "log.txt";
+    private static final int GREEN_BASE = 150;
+    private static final int GREEN_RANGE = 106;
+    private static final int RED_BLUE_MAX = 50;
 
     public MenuGUI() {
-        // set up the frame
-        setTitle("Menu GUI");
-        setSize(500, 500);
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setLayout(new BorderLayout());
-
-        // setup the text area
-        textArea = new JTextArea();
-        JScrollPane scrollPane = new JScrollPane(textArea);
-        add(scrollPane, BorderLayout.CENTER);
-
+        initializeFrame();
+        initializeComponents();
         createMenuBarAndItems();
-    }
-
-    // handles displaying the current date and time to the text area
-    private void showDateTime() {
-        LocalDateTime dateTime = LocalDateTime.now();
-        textArea.setText(dateTime.toString());
     }
 
     // handles writing the text in the text area to a file called log.txt
     private void logToFile() {
-        try(FileWriter writer = new FileWriter("log.txt", true)){
-            writer.write(textArea.getText() + System.lineSeparator());
-            textArea.setText("Sucessfully wrote to the file log.txt");
-        } catch (IOException ex){
-            JOptionPane.showMessageDialog(this,
-                    "Error attempting to write to file",
-                    "File Error",
-                    JOptionPane.ERROR_MESSAGE);
+        String content = textArea.getText();
+        if (content == null || content.trim().isEmpty()) {
+            showError("Cannot log empty content");
+            return;
+        }
+
+        try (FileWriter writer = new FileWriter(LOG_FILE_NAME, true)) {
+            writer.write(content + System.lineSeparator());
+            showSuccess("Successfully wrote to " + LOG_FILE_NAME);
+        } catch (IOException ex) {
+            showError("Error writing to file: " + ex.getMessage());
         }
     }
 
-    // handles changing the background to a random shade of green
-    private void randomShadeOfGreen() {
-        // we need the green part of the RGB to be high so well start at 150
-        // and take a random number between 0-106.
-        // this gets us a random shade of green because the base being 150 + any number between 0-106 will be from 150-255 which is the max
-        int green = 150 + random.nextInt(106);
-        int red = random.nextInt(50); // this will keep the red low (< 50)
-        int blue = random.nextInt(50); // this will keep the blue low (< 50)
-        Color greenShade =  new Color(red, green, blue);
-        textArea.setBackground(greenShade);
-        repaint();
-        textArea.setText("Changed color to: " + greenShade);
+    private void showError(String message) {
+        JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
+    }
+
+    private void showSuccess(String message) {
+        textArea.setText(message);
     }
 
     // private method for creating menu items and setting event listeners
     private void createMenuBarAndItems() {
-        // menu setup
         JMenuBar menuBar = new JMenuBar();
         setJMenuBar(menuBar);
 
-        JMenuItem menuItem1 = new JMenuItem("Show Date");
-        menuBar.add(menuItem1);
+        addMenuItem(menuBar, MenuAction.SHOW_DATE, this::showDateTime);
+        addMenuItem(menuBar, MenuAction.LOG_TO_FILE, this::logToFile);
+        addMenuItem(menuBar, MenuAction.RANDOM_GREEN, this::randomShadeOfGreen);
+        addMenuItem(menuBar, MenuAction.EXIT, this::exitApplication);
+    }
 
-        JMenuItem menuItem2 = new JMenuItem("Log Text to File");
-        menuBar.add(menuItem2);
+    private void addMenuItem(JMenuBar menuBar, MenuAction action, Runnable handler) {
+        JMenuItem menuItem = new JMenuItem(action.getLabel());
+        menuItem.addActionListener(e -> handler.run());
+        menuBar.add(menuItem);
+    }
 
-        JMenuItem menuItem3 = new JMenuItem("Random Green Hue");
-        menuBar.add(menuItem3);
+    // handles changing the background to a random shade of green
+    private void randomShadeOfGreen() {
+        Color greenShade = generateRandomGreenShade();
+        textArea.setBackground(greenShade);
+        textArea.setText("Changed color to: RGB(" + greenShade.getRed() +
+                ", " + greenShade.getGreen() + ", " + greenShade.getBlue() + ")");
+    }
 
-        JMenuItem menuItem4 = new JMenuItem("Exit");
-        menuBar.add(menuItem4);
+    private Color generateRandomGreenShade() {
+        int green = GREEN_BASE + random.nextInt(GREEN_RANGE);
+        int red = random.nextInt(RED_BLUE_MAX);
+        int blue = random.nextInt(RED_BLUE_MAX);
+        return new Color(red, green, blue);
+    }
 
-        // actions for menu items
-        menuItem1.addActionListener(e -> showDateTime());
-        menuItem2.addActionListener(e -> logToFile());
-        menuItem3.addActionListener(e -> randomShadeOfGreen());
-        menuItem4.addActionListener(e -> System.exit(0));
+    // use a formatter for a more user friendly date and time
+    private void showDateTime() {
+        LocalDateTime dateTime = LocalDateTime.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        textArea.setText(formatter.format(dateTime));
+    }
+
+    private void initializeComponents() {
+        textArea = new JTextArea();
+        textArea.setLineWrap(true);
+        textArea.setWrapStyleWord(true);
+        textArea.setMargin(new Insets(10, 10, 10, 10));
+
+        JScrollPane scrollPane = new JScrollPane(textArea);
+        add(scrollPane, BorderLayout.CENTER);
+    }
+
+    // method that is a cleaner exit menu to show confirmation as opposed to just ending the application
+    private void exitApplication() {
+        int result = JOptionPane.showConfirmDialog(this,
+                "Are you sure you want to exit?",
+                "Confirm Exit",
+                JOptionPane.YES_NO_OPTION);
+
+        if (result == JOptionPane.YES_OPTION) {
+            System.exit(0);
+        }
+    }
+
+    private void initializeFrame() {
+        setTitle("Menu GUI");
+        setSize(WINDOW_WIDTH, WINDOW_HEIGHT);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setLayout(new BorderLayout());
+        setLocationRelativeTo(null); // Center on screen
     }
 }
